@@ -127,7 +127,7 @@ impl TFVec {
         let mut values = Vec::with_capacity(n);
         for i in 0..n {
             let start = 4 + i * 8;
-            let end = start + 8;
+            let _end = start + 8;
             let val = f64::from_le_bytes([
                 bytes[start],
                 bytes[start + 1],

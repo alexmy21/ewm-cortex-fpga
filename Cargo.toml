@@ -3,21 +3,30 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-authors = ["ewm-cortex project"]
+authors = ["ewm-cortex-fpga project"]
 license = "MIT"
 
 [workspace.dependencies]
-# ── ewm-cortex crates (first-party, self-contained) ──
+# ── ewm-cortex crates (first-party, kept as the golden reference) ──
 cortex-core = { path = "crates/cortex-core" }
 ewm-git = { path = "crates/ewm-git" }
 hllset-attn = { path = "crates/hllset-attn" }
 hllset-core = { path = "crates/hllset-core" }
 hllset-materialize = { path = "crates/hllset-materialize" }
 hllset-repro = { path = "crates/hllset-repro" }
+cortex-fpga = { path = "crates/cortex-fpga" }
+lut-view = { path = "crates/lut-view" }
 
-# ── External (crates.io only; no path deps outside this workspace) ──
+# ── ewm-fpga-bridge (path deps: this copy intentionally breaks the
+#    self-containment of ewm-cortex to consume the bridge) ──
+ewm-core = { path = "../ewm-fpga-bridge/crates/ewm-core" }
+ewm-dsl = { path = "../ewm-fpga-bridge/crates/ewm-dsl" }
+ewm-hostif = { path = "../ewm-fpga-bridge/crates/ewm-hostif" }
+ewm-modules = { path = "../ewm-fpga-bridge/crates/ewm-modules" }
+
+# ── External (crates.io only) ──
 murmur3 = "0.5"
 sha1 = "0.10"
 hex = "0.4"

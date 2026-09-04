@@ -1,0 +1,20 @@
+[package]
+name = "cortex-fpga"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "ewm-cortex pipeline re-expressed over ewm-fpga-bridge (golden modules first, sim backend later)"
+
+[dependencies]
+# ── ewm-fpga-bridge (path deps: the whole point of the -fpga copy) ──
+ewm-core = { workspace = true }
+ewm-dsl = { workspace = true }
+ewm-hostif = { workspace = true }
+ewm-modules = { workspace = true }
+
+# ── ewm-cortex first-party reference (bit-exact crosscheck) ──
+cortex-core = { workspace = true }
+hllset-core = { workspace = true }
+hllset-materialize = { workspace = true }
+lut-view = { workspace = true }

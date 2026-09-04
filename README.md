@@ -1,18 +1,38 @@
-# ewm-cortex
+# ewm-cortex-fpga
 
-Enhanced reimplementation of **hllset-cortex** (the DeepSeek-OCR black-box
-reference) in Rust, adding the MoE / Expert Think Tank context layer and
-aligning with the EWM spec.
+The **bridge test copy** of `ewm-cortex`: the DeepSeek-OCR black-box pipeline
+re-expressed over `ewm-fpga-bridge` (milestone **M4-fpga**). The original
+`ewm-cortex` stays self-contained and unchanged; this workspace consumes the
+bridge by path and crosschecks bit-exactly against the first-party reference
+crates it inherits.
 
-> **v0.2.0 — self-contained (intentional compatibility break).**
-> This workspace no longer depends on `hllset-next`, `EWM`, or
-> `ewm-fpga-bridge` by path. The HLLSet algebra (`hllset-core`) and the
-> materialization layer (`hllset-materialize`) are now **first-party
-> crates** and evolve independently. Old versions coexist in their own
-> checkouts. See [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md).
+> **v0.3.0 — bridge consumer (intentional break of self-containment).**
+> Unlike `ewm-cortex` v0.2.0, this workspace **does** depend on
+> `ewm-fpga-bridge` by path (`ewm-core`, `ewm-dsl`, `ewm-hostif`,
+> `ewm-modules`). The vendored `hllset-core`/`hllset-materialize` and
+> `cortex-core` are kept as the **golden reference** for bit-exact
+> crosschecks; `ewm-git` stays at the app layer (bridge is store-agnostic).
 
 See [`docs/CORTEX_ARCHITECTURE.md`](docs/CORTEX_ARCHITECTURE.md) for the
-full architecture and milestone plan.
+architecture and milestone plan (M4-fpga below).
+
+## M4-fpga — bridge pipeline (this workspace's first milestone)
+
+```text
+doc ids (tid{n}) ──► Slice (materialize, tid InLUT) ──► Gate (gate_TF) ──► restored
+```
+
+- [`crates/cortex-fpga`](crates/cortex-fpga) declares the pipeline with
+  `ewm-dsl`, lowers it to `ewm-hostif` wire config, and runs it over the
+  bridge's **golden module registry** (the `SimModuleDriver` substitutes in
+  when bridge Phase E lands — the declaration does not change).
+- Crosschecks (all bit-exact, run with `cargo test -p cortex-fpga`):
+  1. hashing vs vendored `hllset-core`;
+  2. InLUT recovery vs vendored `materialize_inlut`;
+  3. gate semantics vs `cortex_core::Gate`;
+  4. the pinned collision divergence (bridge returns the candidate group; the
+     vendored `TfLut` picks the TF winner — upstream-first work, see the
+     bridge review 2026-09-04 §1.4).
 
 ## Pipeline (reference port + enhancement)
 
@@ -20,19 +40,20 @@ full architecture and milestone plan.
 DeepSeek-OCR Encoder                     DeepSeek-OCR Decoder
       │ encoding IDs (tid{n})                 ▲ restored IDs
       ▼                                       │
-╔══════════════════════════════════════════════════════════╗
-║                    ewm-cortex (Rust workspace)           ║
-║  cortex-core   : tokens → hash → tokenLUT → HLLSet →      ║
-║                  : materialize → gate_TF → restored → decoder║
-║  cortex-context: MoE/ETT → EL → Resolution A+B → F(t)    ║
-╚══════════════════════════════════════════════════════════╝
+╔════════════════════════════════════════════════════════════════╗
+║                  ewm-cortex-fpga (Rust workspace)              ║
+║  cortex-core   : tokens → hash → tokenLUT → HLLSet →           ║
+║                  : materialize → gate_TF → restored → decoder  ║
+║  cortex-fpga   : the same black box as an ewm-fpga-bridge DSL  ║
+║  cortex-context: MoE/ETT → EL → Resolution A+B → F(t)          ║
+╚════════════════════════════════════════════════════════════════╝
 ```
 
 ## Layout
 
 ```text
-ewm-cortex/
-├── Cargo.toml                # workspace root (version 0.2.0)
+ewm-cortex-fpga/
+├── Cargo.toml                # workspace root (version 0.3.0)
 ├── corpus/
 │   └── conversation.txt      # corpus for e2e training/testing
 ├── crates/
@@ -43,16 +64,21 @@ ewm-cortex/
 │   │                         # ContextVocabulary, TokenMask
 │   ├── ewm-git/              # 2005-style Git evolution store (replaces temporal pyramid)
 │   ├── cortex-core/          # black-box pipeline (encoding, gate, TF-LUT, pipeline)
+│   ├── cortex-fpga/          # the same black box as an ewm-fpga-bridge DSL
+│   ├── lut-view/             # LUT-view: content-addressed vector of token
+│   │                         # hashes (SHA-1 identity), ephemeral cache today
 │   └── hllset-repro/         # token realm: hand-rolled autograd, char-level
 │                             # transformer, Phase 0-3 harnesses
 └── docs/
     ├── PROJECT_STRUCTURE.md                       # crate graph + ownership rules
     ├── CORTEX_ARCHITECTURE.md                     # enhanced hllset-cortex architecture
+    ├── LUT_VIEW.md                                # LUT-view design discussion + v1 contract
     ├── HLLSET_K_SPACE_MATH.md                     # theory (partition, adjunction, MoE/ETT §8)
     ├── HLLSET_LUT_TRANSFORMER_ARCHITECTURE.md     # implementation roadmap (Phases 0-4)
     └── notebooks/
         ├── 14_hllset_attention_demo.ipynb         # concepts demo (evcxr)
-        └── 15_e2e_training_testing.ipynb          # train/test on unknown text (evcxr)
+        ├── 15_e2e_training_testing.ipynb          # train/test on unknown text (evcxr)
+        └── 16_bridge_lutview_demo.ipynb           # M4-fpga + LUT-view end-to-end (evcxr)
 ```
 
 ## Quick start
@@ -61,6 +87,9 @@ ewm-cortex/
 # M1 — cortex pipeline (tokens → hash → tokenLUT → HLLSet → materialize → gate_TF → restored)
 cargo run -p cortex-core                     # uses corpus/conversation.txt
 cargo run -p cortex-core -- path/to/text.txt
+
+# M4-fpga — the cortex pipeline over ewm-fpga-bridge (golden modules)
+cargo test -p cortex-fpga                    # bit-exact crosscheck + golden run
 
 # G1 — content-addressed evolution store (commit DAG, H(t) view, merge, gc)
 cargo run -p ewm-git
@@ -84,7 +113,12 @@ cargo test --workspace
 - [ ] E3 — IPFS archive adapter (`hllset-storage::IpfrsNativeStorage`)
 - [ ] M2 — MoE/ETT integration (`cortex-context`, candidates from the commit DAG)
 - [ ] M3 — grounding/search port
-- [ ] M4 — EWM alignment + `ewm-fpga-bridge` module DSL
+- [x] M4-fpga (step 1/2) — `ewm-fpga-bridge` module DSL: bit-exact crosschecks
+      + golden `Slice → Gate` pipeline in `cortex-fpga` (sim backend swaps in
+      at bridge Phase E)
+- [x] LUT-view v1 (`lut-view` crate) — content-addressed vector of token
+      hashes, SHA-1 identity, refresh-iff-changed; upgrade path documented
+      (canonical set → Merkle proofs → per-LUT provenance)
 - [ ] M5 — PyO3 bindings for DeepSeek-OCR integration
 
 ### **Attention/K-space POC**

@@ -1,0 +1,11 @@
+[package]
+name = "lut-view"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "LUT-view: a content-addressed vector of token hashes (SHA-1 identity), upgradeable to a canonical set / Merkle tree later"
+
+[dependencies]
+hex = { workspace = true }
+sha1 = { workspace = true }

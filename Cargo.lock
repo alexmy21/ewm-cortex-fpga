@@ -31,10 +31,24 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "cortex-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "hllset-attn",
  "hllset-core",
+]
+
+[[package]]
+name = "cortex-fpga"
+version = "0.3.0"
+dependencies = [
+ "cortex-core",
+ "ewm-core",
+ "ewm-dsl",
+ "ewm-hostif",
+ "ewm-modules",
+ "hllset-core",
+ "hllset-materialize",
+ "lut-view",
 ]
 
 [[package]]
@@ -67,11 +81,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "ewm-core"
+version = "0.1.0"
+dependencies = [
+ "murmur3",
+]
+
+[[package]]
+name = "ewm-dsl"
+version = "0.1.0"
+dependencies = [
+ "ewm-core",
+]
+
+[[package]]
 name = "ewm-git"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "hllset-core",
  "hllset-materialize",
+]
+
+[[package]]
+name = "ewm-hostif"
+version = "0.1.0"
+dependencies = [
+ "ewm-core",
+]
+
+[[package]]
+name = "ewm-modules"
+version = "0.1.0"
+dependencies = [
+ "ewm-core",
+ "ewm-hostif",
 ]
 
 [[package]]
@@ -113,7 +156,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hllset-attn"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "hllset-core",
  "hllset-materialize",
@@ -121,7 +164,7 @@ dependencies = [
 
 [[package]]
 name = "hllset-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "hex",
  "murmur3",
@@ -133,7 +176,7 @@ dependencies = [
 
 [[package]]
 name = "hllset-materialize"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "fpga-hllset",
  "fpga-hostif",
@@ -142,7 +185,7 @@ dependencies = [
 
 [[package]]
 name = "hllset-repro"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "hllset-attn",
  "hllset-core",
@@ -159,6 +202,14 @@ name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
+
+[[package]]
+name = "lut-view"
+version = "0.3.0"
+dependencies = [
+ "hex",
+ "sha1",
+]
 
 [[package]]
 name = "memchr"
