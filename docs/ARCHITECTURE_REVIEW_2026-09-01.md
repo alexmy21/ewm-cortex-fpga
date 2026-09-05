@@ -14,7 +14,7 @@
 **Overall grade: B+** — solid architecture with clear separation of concerns, but several production-robustness issues should be addressed before the unfinished milestones (M2–M5, E3) land.
 
 | Metric | Result |
-|---|---|
+| --- | --- |
 | `cargo test --workspace` | ✅ all pass |
 | `cargo clippy --workspace` | ✅ builds, 9 minor warnings |
 | Crates | 6 (hllset-core, hllset-materialize, hllset-attn, ewm-git, cortex-core, hllset-repro) |
@@ -69,7 +69,7 @@ Every crate has unit tests; `ewm-git` has full-lifecycle integration tests; `hll
 The core algebra crate contains `unwrap`/`expect` calls that can panic in library usage:
 
 | File | Line | Issue |
-|---|---|---|
+| --- | --- | --- |
 | `crates/hllset-core/src/core/hashing.rs` | 28 | `murmur3_hash_seeded` panics on in-memory `Cursor` failure |
 | `crates/hllset-core/src/core/serialization.rs` | 16 | `HLLSet::to_bytes` panics on `serialize_into` failure |
 | `crates/hllset-core/src/core/tfvec.rs` | 66 | `TFVec::increment` panics on out-of-range index |
@@ -93,6 +93,7 @@ The core algebra crate contains `unwrap`/`expect` calls that can panic in librar
 `MaterializeEngine::materialize` takes `positions: &[(u16, u8)]` (`crates/hllset-materialize/src/lib.rs:25`), but the only implementer (`Materializer` in `materialize.rs:749`) ignores the argument and recomputes positions internally. The trait also lives in `hllset-materialize`, so future backends must depend on the full materialization crate even if they only want to implement the algebra-side contract.
 
 **Recommendation:**
+
 - Remove the unused `positions` argument from the trait or split the interface into a query plan and an engine.
 - Consider moving `MaterializeEngine` to `hllset-core` so backend crates depend only on the algebra crate.
 
@@ -143,7 +144,7 @@ The core algebra crate contains `unwrap`/`expect` calls that can panic in librar
 The codebase has ~201 `clone()` calls. Many are inherent to immutable HLLSet operations, but several are avoidable:
 
 | File | Issue |
-|---|---|
+| --- | --- |
 | `crates/ewm-git/src/hllset_lut.rs:69` | `HllsetLut::ranked` clones every entry; could return references or an iterator |
 | `crates/hllset-materialize/src/materialize.rs:88-95, 580-587` | `collect_candidates` clones all candidate tokens per call |
 | `crates/hllset-attn/src/bridge.rs:41, 48` | `KBridge::key_vector` clones the `KeyRef` twice |
@@ -241,7 +242,7 @@ No `.github/workflows` or equivalent CI configuration was found.
 ## 7. Prioritized Recommendations
 
 | Priority | Item | Rationale | Effort |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **P0** | Replace core library panics with `Result` | Foundation everything builds on | Medium |
 | **P0** | Fix O(n²) DAG traversal in `ewm-git` | Real performance bug for large histories | Small |
 | **P0** | Reconcile `MaterializeEngine` trait signature | API dishonesty blocks backend work | Small |
@@ -332,4 +333,3 @@ propagation, 3.4 `parse_cid` hex validation, 3.5 deterministic commit
 timestamps, 3.6 CLI absolute paths, 4.x clone audit, 5.1/5.2
 benchmarks/property tests, 5.5 clippy warnings. These are scheduled as
 hardening, not gate items.
-

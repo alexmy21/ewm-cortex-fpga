@@ -127,7 +127,7 @@ socket once pipeline nodes move to the bridge.
 state:
 
 | Channel | Source |
-|---|---|
+| --- | --- |
 | `G1` | bits mapped from 1-gram or seed-0 |
 | `G2` | bits mapped from 2-gram or seed-1 |
 | `G3` | bits mapped from 3-gram or seed-2 |
@@ -172,7 +172,7 @@ maintaining the lattice explicitly is computationally and resource
 expensive. Instead, **all three rankings are frequency-based**:
 
 | Object | Rank measure | Stored in |
-|---|---|---|
+| --- | --- | --- |
 | tokens | TF (term frequency) | token/catalog LUT |
 | registers (bits) | bit-TF (32K vector) | `BitTf` — snapshot in every commit |
 | original HLLSets | TH (touch count) | `HllsetLut` — `<SHA1, TH>` |

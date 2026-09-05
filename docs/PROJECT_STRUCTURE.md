@@ -36,7 +36,7 @@ hllset-core            vendored algebra: HLLSet, hashing, operations,
 Dependency matrix (only these edges are allowed):
 
 | Crate | Depends on |
-|---|---|
+| --- | --- |
 | `hllset-core` | crates.io only (murmur3, sha1, hex, roaring, serde, serde_json) |
 | `hllset-materialize` | `hllset-core`; `fpga-hostif`+`fpga-hllset` (optional, feature `fpga-sim`) |
 | `hllset-attn` | `hllset-core`, `hllset-materialize` |
@@ -59,7 +59,7 @@ Rules:
 ## What moved (0.1.0 → 0.2.0)
 
 | Before | After |
-|---|---|
+| --- | --- |
 | `hllset-core` path-dep on `../hllset-next/crates/hllset-core` | `crates/hllset-core` (vendored, first-party) |
 | `hllset-dsl` path-dep (only `materialize` was used) | `crates/hllset-materialize` (extracted module + trait) |
 | docs pointing at hllset-next/EWM/ewm-fpga-bridge as authorities | those projects are historical upstreams only |
