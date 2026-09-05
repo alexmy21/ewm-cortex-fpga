@@ -141,7 +141,118 @@ zero view replacements and a new token produces exactly one.
    app-layer structure.
 7. **Merkle is a future feature with explicit triggers** (§4), not a default.
 
-## 7. Related documents
+## 7. Design v2 — the relational view and the HLLSet tree (recorded after review)
+
+Review of the v1 implementation produced two correct critiques and one new
+idea. This section records the resulting design; **v1 code stays as-is until
+the prototype is approved.**
+
+### 7.1 The two critiques of v1
+
+1. **v1 mirrors HLLSet.** It is a content-addressed container
+   (`digest + payload`) — but a view is not a primary object; it is a
+   *derived function value*.
+2. **v1 carries no LUT reference.** A view without `(H_i, L_j)` is an
+   anonymous result: it cannot be recomputed on a miss, verified, or
+   meaningfully compared ("same digest" = same output bytes, not same function
+   at the same point).
+
+### 7.2 The relational model
+
+```text
+V_j(H_i) = M(H_i, L_j)      # per-LUT materialization — the morphism at a point
+V(H_i)   = ∪_j V_j(H_i)     # full image of H_i over the LUT family
+```
+
+Consequences:
+
+- The **cache key is the pair `(h_i, l_j)`**, not the output digest. `M` is
+  deterministic, so the pair *is* the identity; the output digest is a
+  recomputable checksum. A view record is
+  `{ h: ContentKey, l: LutKey, tokens, digest }` — recompute on miss, drop
+  freely, replace iff digest changed.
+- The **full image is a CRDT union**: `V(H_i) = ∪_j V_j(H_i)` over the 7 LUTs
+  (main, unigram, bigram, trigram, seed-0/1/2) is token-set union —
+  idempotent/commutative/associative via `TokenSet`.
+- The bridge already emits `V_j` for one configured LUT (`Slice`); the full
+  image is the app-layer union of slice outputs across LUTs. **Bridge
+  unchanged.**
+- **Materialization is not invertible**, so views are keyed by `(H, L)` only,
+  never reverse-indexed by output alone (two-space rule preserved).
+
+### 7.3 The operational idea: views hang off their HLLSets, HLLSets form a tree
+
+```text
+context root (sha1)
+ ├── internal node = sha1(left ‖ right) + aggregate view digests
+ ├── leaf H_a (h:<sha1>)
+ │      ├── (main,  v:<sha1>)   ← V_main(H_a)
+ │      ├── (uni,   v:<sha1>)
+ │      └── (seed0, v:<sha1>) …
+ └── leaf H_b …
+```
+
+Why this is the right place for Merkle (unlike the dropped per-view tree):
+
+- **Exact collection identity.** `H(cache) = ∪ HLLSets` is a cheap structural
+  summary but cannot be un-ORed (Session 4's subtraction problem). A Merkle
+  tree over the HLLSets is an exact set of digests: add/remove a leaf = tree
+  edit → new root. **This supports eviction correctly**, which the union never
+  could.
+- **Subtree aggregates.** Internal nodes carry the digest of their subtree's
+  full image, so `V(subtree)` is provable and syncable without holding the
+  whole thing.
+- **Context diff = tree diff.** Two roots differ in exactly the leaves that
+  entered/left — structural D/R/N at the HLLSet level, for free.
+- **`ewm-git` is the natural host.** A Merkle tree of HLLSets is Git's tree
+  object. Decision: the operational implementation **reuses `ewm-git`**
+  (HLLSet = blob, view = derived blob keyed `(h, l)`, context = tree, commit
+  references the root) rather than building a parallel tree. Commits then pin
+  both the structural state **and** the vocabulary views.
+- The **replace-iff-changed rule moves up one level**: the context root
+  changes iff the leaf set changes; views change iff leaves or LUTs change.
+  One digest comparison at the top.
+
+### 7.4 What the code became (implemented 2026-09-05)
+
+- `lut-view` gained the relational **`ViewRecord`** (`{ h, l, tokens, digest }`):
+  canonical token-set semantics, `(h, l)` as the cache identity, `v:<sha1>` as
+  the output checksum.
+- New **`context-tree`** crate: a persistent Merkle tree over HLLSet leaves
+  (sorted by `h:<sha1>`, deduplicated), each leaf carrying its per-LUT view
+  keys. Operations are **reversible** (insert∘remove = id) and form a
+  **lattice** (`merge`/`intersection`/`difference`, `diff` = leaf-level D/R/N).
+- `cortex-fpga::context` wires the bridge's golden InLUT to the model:
+  `view_record` (`V_j(H_i)`), `full_image` (`∪_j V_j(H_i)`),
+  `context_tree_for` (the algebraic `S(t)`), with tests asserting the Noether
+  equation agrees with `ewm-git`'s `CommitView`.
+
+### 7.5 Settled / remaining open points
+
+Settled by the implementation:
+
+1. Internal nodes store **digests only** (full levels kept; union aggregates
+   deferred).
+2. Canonical leaf order: **sorted by `h:<sha1>`**, deduplicated by `h`.
+3. Per-LUT views live as **leaf payload** (`(lut, v:<sha1>)` pairs, sorted),
+   hashed into the leaf — not a side map.
+
+Still open:
+
+4. How `ContextTree` roots are referenced from `ewm-git` commits (the root is
+   recomputable from the committed states today; storing it in the commit
+   object is the next step).
+5. Subtree aggregates (the full union set at chosen levels) — digests only for
+   now.
+
+**Prototype recorded** in
+[`docs/notebooks/17_context_tree_prototype.ipynb`](notebooks/17_context_tree_prototype.ipynb):
+relational views with `(h, l)` provenance, full image as CRDT union, a Merkle
+`ContextTree` over HLLSets with leaf-level views, the algebraic
+`H(t) = (S(t), H(t-1), D, R, N)` (invariants asserted), and the `ewm-git`
+commit link (D/R/N agree between the tree math and `CommitView`).
+
+## 8. Related documents
 
 - Bridge `docs/DECISIONS.md` Session 5.2 — two-structure rule, store-agnostic
   bridge, `ewm-cortex-fpga` boundary.

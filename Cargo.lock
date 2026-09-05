@@ -30,6 +30,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
+name = "context-tree"
+version = "0.3.0"
+dependencies = [
+ "hex",
+ "sha1",
+]
+
+[[package]]
 name = "cortex-core"
 version = "0.3.0"
 dependencies = [
@@ -41,9 +49,11 @@ dependencies = [
 name = "cortex-fpga"
 version = "0.3.0"
 dependencies = [
+ "context-tree",
  "cortex-core",
  "ewm-core",
  "ewm-dsl",
+ "ewm-git",
  "ewm-hostif",
  "ewm-modules",
  "hllset-core",

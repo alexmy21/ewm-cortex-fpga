@@ -159,3 +159,109 @@ mod tests {
         assert!(LutView::from_hashes([]).is_empty());
     }
 }
+
+// ── v2: the relational view (LUT_VIEW.md §7) ─────────────────────────────
+
+/// A relational LUT-view: `V_j(H_i) = M(H_i, L_j)` — the materialization of
+/// one HLLSet through one LUT, with provenance.
+///
+/// - `h` — content key of the HLLSet (`h:<sha1>`);
+/// - `l` — the LUT key (e.g. `"main"`, `"uni"`, `"seed0"`);
+/// - `tokens` — the materialized token bytes, canonical (sorted, deduplicated);
+/// - `digest` — the view key `v:<sha1>` over the canonical tokens.
+///
+/// The cache identity is the **pair** `(h, l)`, not the digest: `M` is
+/// deterministic, so the pair is the key and the digest is a recomputable
+/// checksum.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ViewRecord {
+    pub h: String,
+    pub l: String,
+    pub tokens: Vec<Vec<u8>>,
+    pub digest: String,
+}
+
+impl ViewRecord {
+    /// Build a view record from provenance + materialized token bytes.
+    ///
+    /// The tokens are canonicalized (sorted, deduplicated) so the digest
+    /// identifies the *set* regardless of materialization order — the
+    /// lattice-aligned (reversible) semantics of the relational model.
+    pub fn new(h: impl Into<String>, l: impl Into<String>, tokens: Vec<Vec<u8>>) -> Self {
+        let tokens = canonical_tokens(tokens);
+        let digest = view_digest(&tokens);
+        Self {
+            h: h.into(),
+            l: l.into(),
+            tokens,
+            digest,
+        }
+    }
+
+    /// The cache identity: the `(h, l)` pair.
+    pub fn cache_key(&self) -> (String, String) {
+        (self.h.clone(), self.l.clone())
+    }
+
+    /// The view key: `v:<sha1>`.
+    pub fn key(&self) -> &str {
+        &self.digest
+    }
+}
+
+/// Sort + deduplicate token bytes (the canonical token-set form).
+pub fn canonical_tokens(mut tokens: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+    tokens.sort();
+    tokens.dedup();
+    tokens
+}
+
+/// `v:<sha1>` over canonical token bytes (sorted, deduplicated, NUL-joined) —
+/// the vendored `view_key_from_tokens` convention, reimplemented here.
+pub fn view_digest(tokens: &[Vec<u8>]) -> String {
+    let mut sorted = tokens.to_vec();
+    sorted.sort();
+    sorted.dedup();
+    let mut canonical = Vec::new();
+    for (i, token) in sorted.iter().enumerate() {
+        if i > 0 {
+            canonical.push(0u8);
+        }
+        canonical.extend_from_slice(token);
+    }
+    format!("v:{}", hex::encode(Sha1::digest(&canonical)))
+}
+
+#[cfg(test)]
+mod v2_tests {
+    use super::*;
+
+    #[test]
+    fn view_record_carries_provenance_and_is_canonical() {
+        let a = ViewRecord::new("h:aaaa", "main", vec![b"tid2".to_vec(), b"tid0".to_vec()]);
+        let b = ViewRecord::new("h:aaaa", "main", vec![b"tid0".to_vec(), b"tid2".to_vec()]);
+        // Token order does not matter: the record is a set.
+        assert_eq!(a.tokens, b.tokens);
+        assert_eq!(a.digest, b.digest);
+
+        // Provenance is preserved and part of the cache identity.
+        assert_eq!(a.cache_key(), ("h:aaaa".to_string(), "main".to_string()));
+        let other_lut = ViewRecord::new("h:aaaa", "extra", vec![b"tid0".to_vec(), b"tid2".to_vec()]);
+        assert_eq!(a.digest, other_lut.digest, "same tokens, same output checksum");
+        assert_ne!(a.cache_key(), other_lut.cache_key(), "different LUT, different identity");
+    }
+
+    #[test]
+    fn view_digest_matches_the_vendored_convention() {
+        // The vendored content-addr convention: sort, dedup, NUL-join, sha1.
+        let tokens = vec![b"tid5".to_vec(), b"tid2".to_vec(), b"tid5".to_vec()];
+        let key = view_digest(&tokens);
+        assert!(key.starts_with("v:"));
+        assert_eq!(key.len(), 42);
+        // Manual check of the canonical form.
+        let mut canonical = b"tid2".to_vec();
+        canonical.push(0u8);
+        canonical.extend_from_slice(b"tid5");
+        assert_eq!(key, format!("v:{}", hex::encode(Sha1::digest(&canonical))));
+    }
+}

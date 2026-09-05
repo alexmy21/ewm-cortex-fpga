@@ -13,9 +13,11 @@
 
 #![forbid(unsafe_code)]
 
+pub mod context;
 pub mod golden;
 
 #[cfg(test)]
 mod crosscheck;
 
+pub use context::{context_tree_for, full_image, h_key, leaf_for, view_record};
 pub use golden::{cortex_pipeline, run_cortex_pipeline, view_from_tokens, FpgaPipelineResult};

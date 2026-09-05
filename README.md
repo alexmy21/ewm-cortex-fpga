@@ -65,8 +65,10 @@ ewm-cortex-fpga/
 │   ├── ewm-git/              # 2005-style Git evolution store (replaces temporal pyramid)
 │   ├── cortex-core/          # black-box pipeline (encoding, gate, TF-LUT, pipeline)
 │   ├── cortex-fpga/          # the same black box as an ewm-fpga-bridge DSL
-│   ├── lut-view/             # LUT-view: content-addressed vector of token
-│   │                         # hashes (SHA-1 identity), ephemeral cache today
+│   ├── lut-view/             # LUT-view: v1 vector cache + v2 relational
+│   │                         # ViewRecord (h, l) with SHA-1 identity
+│   ├── context-tree/         # Merkle tree over HLLSets + per-leaf views —
+│   │                         # the algebraic S(t) of the Noether equation
 │   └── hllset-repro/         # token realm: hand-rolled autograd, char-level
 │                             # transformer, Phase 0-3 harnesses
 └── docs/
@@ -78,7 +80,8 @@ ewm-cortex-fpga/
     └── notebooks/
         ├── 14_hllset_attention_demo.ipynb         # concepts demo (evcxr)
         ├── 15_e2e_training_testing.ipynb          # train/test on unknown text (evcxr)
-        └── 16_bridge_lutview_demo.ipynb           # M4-fpga + LUT-view end-to-end (evcxr)
+        ├── 16_bridge_lutview_demo.ipynb           # M4-fpga + LUT-view end-to-end (evcxr)
+        └── 17_context_tree_prototype.ipynb        # relational view + HLLSet tree + S(t) (evcxr)
 ```
 
 ## Quick start
@@ -119,6 +122,10 @@ cargo test --workspace
 - [x] LUT-view v1 (`lut-view` crate) — content-addressed vector of token
       hashes, SHA-1 identity, refresh-iff-changed; upgrade path documented
       (canonical set → Merkle proofs → per-LUT provenance)
+- [x] LUT-view v2 (Design v2, notebook 17 promoted to crates) — relational
+      `ViewRecord` with `(h, l)` provenance; `context-tree` Merkle tree over
+      HLLSets (persistent, reversible, lattice ops); `cortex-fpga::context`
+      wiring with Noether/`ewm-git` agreement tests
 - [ ] M5 — PyO3 bindings for DeepSeek-OCR integration
 
 ### **Attention/K-space POC**

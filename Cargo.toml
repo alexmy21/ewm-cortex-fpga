@@ -18,6 +18,7 @@ hllset-materialize = { path = "crates/hllset-materialize" }
 hllset-repro = { path = "crates/hllset-repro" }
 cortex-fpga = { path = "crates/cortex-fpga" }
 lut-view = { path = "crates/lut-view" }
+context-tree = { path = "crates/context-tree" }
 
 # ── ewm-fpga-bridge (path deps: this copy intentionally breaks the
 #    self-containment of ewm-cortex to consume the bridge) ──
